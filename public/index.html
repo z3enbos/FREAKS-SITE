@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freaks Romania | User Panel</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <section id="loginView" class="login-view">
+    <div class="login-overlay"></div>
+    <div class="login-shell">
+      <div class="brand-panel">
+        <img src="/assets/freaks-logo.png" alt="Freaks" class="login-logo">
+        <div class="brand-title">FREAKS ROMANIA</div>
+        <div class="brand-sub">User Panel • FiveM Roleplay</div>
+        <p>Folosește exact contul creat în joc. Nu există cont separat pentru site.</p>
+      </div>
+
+      <form id="loginForm" class="login-card">
+        <div class="eyebrow">FREAKS USER PANEL</div>
+        <h1>Conectează-te în contul tău</h1>
+        <p class="muted">Accesul este disponibil doar pentru conturile create pe server.</p>
+
+        <label>Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="nume@email.com" required>
+
+        <label>Parolă</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Parola din joc" required minlength="6">
+
+        <button type="submit" class="primary-btn">LOGIN</button>
+        <div id="loginError" class="error-box"></div>
+
+        <div class="login-foot">discord.gg/freaksrp • Freaks Romania</div>
+      </form>
+    </div>
+  </section>
+
+  <section id="appView" class="app-view hidden">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img src="/assets/freaks-logo.png" alt="Freaks">
+        <span>FREAKS</span>
+      </div>
+
+      <div class="side-section">PRINCIPAL</div>
+      <button class="nav-link active" data-page="home"><span>⌂</span> Home</button>
+      <button class="nav-link" data-page="profile"><span>◉</span> Profilul meu</button>
+      <button class="nav-link"><span>★</span> Staff</button>
+      <button class="nav-link"><span>✎</span> Reclamații</button>
+      <button class="nav-link"><span>▣</span> Tickete</button>
+      <button class="nav-link"><span>↻</span> Cereri unban</button>
+      <button class="nav-link"><span>◆</span> Shop</button>
+      <button class="nav-link"><span>♜</span> Referrals</button>
+      <button class="nav-link"><span>⊘</span> Banuri</button>
+
+      <div class="sidebar-bottom">
+        <button id="logoutBtn" class="nav-link logout"><span>⏻</span> Deloghează-te</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-btn">☰</button>
+        <div class="search"><span>⌕</span><input placeholder="Caută un profil..."></div>
+        <div class="top-spacer"></div>
+        <div class="coin-pill"><span class="coin-dot"></span><b id="topCoins">0</b> FLCoins</div>
+        <button id="profileMenuBtn" class="profile-chip">
+          <div class="avatar"><img src="/assets/freaks-logo.png"></div>
+          <div><strong id="topName">Freaks</strong><small id="topId">ID —</small></div>
+        </button>
+      </header>
+
+      <div id="homePage" class="page">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow">FREAKS ROMANIA</div>
+            <h2>Panou utilizator</h2>
+            <p class="muted">Contul tău FiveM, într-un singur loc.</p>
+          </div>
+          <div class="online-badge"><span></span> SISTEM ONLINE</div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-icon">♟</div><div><small>ÎNREGISTRAȚI</small><strong id="statRegistered">0</strong><span>conturi Freaks</span></div></article>
+          <article class="stat-card"><div class="stat-icon">▥</div><div><small>CONECTAȚI</small><strong id="statConnected">—</strong><span>server FiveM</span></div></article>
+          <article class="stat-card"><div class="stat-icon">◆</div><div><small>VEHICULE</small><strong id="statVehicles">—</strong><span>înregistrate</span></div></article>
+          <article class="stat-card"><div class="stat-icon">⌂</div><div><small>CASE</small><strong id="statHouses">—</strong><span>proprietăți</span></div></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel activities">
+            <div class="panel-title">ULTIMELE ACTIVITĂȚI</div>
+            <div class="activity"><div class="activity-icon">✓</div><div><strong id="activityName">Player</strong><p>și-a autentificat contul în Freaks Panel</p></div><time>acum</time></div>
+            <div class="activity"><div class="activity-icon">F</div><div><strong>Freaks Romania</strong><p>Panelul este conectat la sistemul de conturi din joc</p></div><time>online</time></div>
+            <div class="empty-activity">Activitățile reale pot fi legate ulterior la logurile serverului.</div>
+          </article>
+
+          <article class="panel quick-profile">
+            <div class="panel-title">CONTUL TĂU</div>
+            <div class="qp-avatar"><img src="/assets/freaks-logo.png"></div>
+            <h3 id="quickName">Player</h3>
+            <p id="quickEmail">email</p>
+            <div class="qp-coins"><span class="coin-dot"></span><b id="quickCoins">0</b> FLCoins</div>
+            <button class="secondary-btn" data-open-profile>VEZI PROFILUL</button>
+          </article>
+        </div>
+      </div>
+
+      <div id="profilePage" class="page hidden">
+        <article class="profile-card">
+          <div class="cover"></div>
+          <div class="profile-head">
+            <div class="profile-avatar"><img src="/assets/freaks-logo.png"></div>
+            <div class="profile-name">
+              <h2 id="profileName">Player</h2>
+              <span id="profileEmail">email</span>
+            </div>
+            <div class="profile-metrics">
+              <div><strong id="metricLevel">1</strong><span>LEVEL</span></div>
+              <div><strong id="metricExp">0 / 1000</strong><span>EXP</span></div>
+              <div><strong id="metricHours">—</strong><span>HRS</span></div>
+            </div>
+          </div>
+
+          <div class="profile-tabs">
+            <button class="active">Profil</button>
+            <button>Istoric facțiuni</button>
+            <button>Vehicule</button>
+            <button>Proprietăți</button>
+            <button>Afaceri</button>
+          </div>
+        </article>
+
+        <article class="panel profile-data">
+          <div class="profile-info-grid">
+            <div class="info-item"><span>◉</span><div><small>ID FiveM/vRP</small><strong id="profileId">—</strong></div></div>
+            <div class="info-item"><span>✉</span><div><small>Email</small><strong id="profileEmail2">—</strong></div></div>
+            <div class="info-item"><span>◈</span><div><small>FLCoins</small><strong id="profileCoins">0</strong></div></div>
+            <div class="info-item"><span>✓</span><div><small>Ultima conectare</small><strong id="lastLogin">—</strong></div></div>
+            <div class="info-item"><span>⌁</span><div><small>Caracter</small><strong id="characterName">—</strong></div></div>
+            <div class="info-item"><span>＋</span><div><small>Cont creat</small><strong id="createdAt">—</strong></div></div>
+          </div>
+        </article>
+      </div>
+
+      <footer>Freaks Romania © 2026 • User Panel</footer>
+    </main>
+  </section>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
