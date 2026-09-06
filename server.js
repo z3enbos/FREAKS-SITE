@@ -9,41 +9,6 @@ const path = require('path');
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
-const TEST_MODE = String(process.env.TEST_MODE || '').toLowerCase() === 'true';
-const TEST_EMAIL = String(process.env.TEST_EMAIL || 'test@freaks.ro').trim().toLowerCase();
-const TEST_PASSWORD = String(process.env.TEST_PASSWORD || 'Freaks123');
-const TEST_COOKIE = 'freaks_test_token';
-
-function parseCookies(req) {
-  const raw = String(req.headers.cookie || '');
-  return Object.fromEntries(
-    raw.split(';').map(v => v.trim()).filter(Boolean).map(v => {
-      const i = v.indexOf('=');
-      return i === -1 ? [v, ''] : [v.slice(0, i), decodeURIComponent(v.slice(i + 1))];
-    })
-  );
-}
-
-function makeTestToken(email) {
-  return crypto
-    .createHmac('sha256', process.env.SESSION_SECRET || 'CHANGE-ME-FREAKS')
-    .update(`freaks-test:${email}`)
-    .digest('hex');
-}
-
-function isTestAuthenticated(req) {
-  if (!TEST_MODE) return false;
-  const cookies = parseCookies(req);
-  const got = String(cookies[TEST_COOKIE] || '');
-  const expected = makeTestToken(TEST_EMAIL);
-  if (!got || got.length !== expected.length) return false;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
-
 const db = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT || 3306),
@@ -88,8 +53,6 @@ function verifyPassword(password, saltHex, expectedHashHex) {
 }
 
 function requireAuth(req, res, next) {
-  if (isTestAuthenticated(req)) return next();
-
   if (!req.session.accountId) {
     return res.status(401).json({ ok: false, error: 'NOT_AUTHENTICATED' });
   }
@@ -133,23 +96,6 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ ok: false, message: 'Email sau parolă invalidă.' });
   }
 
-  // Mod temporar pentru test pe Vercel fără MySQL public.
-  if (TEST_MODE) {
-    if (email !== TEST_EMAIL || password !== TEST_PASSWORD) {
-      return res.status(401).json({ ok: false, message: 'Email sau parolă greșită.' });
-    }
-
-    const secure = String(process.env.NODE_ENV || '') === 'production';
-    res.cookie(TEST_COOKIE, makeTestToken(email), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure,
-      maxAge: 1000 * 60 * 60 * 24
-    });
-
-    return res.json({ ok: true, testMode: true });
-  }
-
   try {
     const [rows] = await db.query(
       `SELECT id, license, email, password_hash, password_salt,
@@ -183,40 +129,10 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  if (TEST_MODE) {
-    res.clearCookie(TEST_COOKIE, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: String(process.env.NODE_ENV || '') === 'production'
-    });
-  }
   req.session.destroy(() => res.json({ ok: true }));
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
-  if (TEST_MODE && isTestAuthenticated(req)) {
-    return res.json({
-      ok: true,
-      testMode: true,
-      user: {
-        accountId: 1,
-        userId: 1,
-        displayName: 'z3en',
-        email: TEST_EMAIL,
-        flcoins: 2500,
-        createdAt: '2026-09-05T00:00:00.000Z',
-        lastLoginAt: new Date().toISOString(),
-        identity: {
-          id: 1,
-          firstName: 'Freaks',
-          secondName: 'Test',
-          age: 20,
-          sex: 'M'
-        }
-      }
-    });
-  }
-
   try {
     const [rows] = await db.query(
       `SELECT id, license, email, fivem_name, flcoins, user_id,
@@ -259,20 +175,6 @@ app.get('/api/me', requireAuth, async (req, res) => {
 });
 
 app.get('/api/dashboard', requireAuth, async (req, res) => {
-  if (TEST_MODE && isTestAuthenticated(req)) {
-    return res.json({
-      ok: true,
-      testMode: true,
-      stats: {
-        registered: 1284,
-        connected: 137,
-        vehicles: 846,
-        houses: 219
-      },
-      serverName: process.env.SERVER_NAME || 'Freaks Romania'
-    });
-  }
-
   const stats = {
     registered: 0,
     connected: null,
@@ -310,6 +212,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Freaks Panel: http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[Freaks Panel] http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
