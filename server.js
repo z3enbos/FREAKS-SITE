@@ -174,6 +174,71 @@ app.get('/api/me', requireAuth, async (req, res) => {
   }
 });
 
+
+async function getLivePlayerCount() {
+  const base = String(process.env.FIVEM_SERVER_URL || 'http://81.181.113.103:30108').replace(/\/+$/, '');
+
+  try {
+    const response = await fetch(`${base}/players.json`, {
+      headers: { 'User-Agent': 'Freaks-Panel/1.0' },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) return null;
+
+    const players = await response.json();
+    return Array.isArray(players) ? players.length : null;
+  } catch (err) {
+    console.error('FIVEM PLAYERS ERROR:', err.message);
+    return null;
+  }
+}
+
+async function getTotalVehicleCount() {
+  // Încearcă întâi tabela standard vRP.
+  const candidates = [
+    'vrp_user_vehicles',
+    'user_vehicles',
+    'vehicles',
+    'player_vehicles',
+    'owned_vehicles'
+  ];
+
+  for (const table of candidates) {
+    try {
+      const [rows] = await db.query(`SELECT COUNT(*) AS c FROM \`${table}\``);
+      if (rows && rows.length) return Number(rows[0].c || 0);
+    } catch (_) {}
+  }
+
+  // Fallback: caută automat o tabelă care conține "vehicle" în baza curentă.
+  try {
+    const [tables] = await db.query(`
+      SELECT TABLE_NAME
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND LOWER(TABLE_NAME) LIKE '%vehicle%'
+      ORDER BY
+        CASE WHEN LOWER(TABLE_NAME) = 'vrp_user_vehicles' THEN 0 ELSE 1 END,
+        TABLE_NAME
+    `);
+
+    for (const row of tables) {
+      const table = row.TABLE_NAME;
+      if (!/^[A-Za-z0-9_]+$/.test(table)) continue;
+
+      try {
+        const [rows] = await db.query(`SELECT COUNT(*) AS c FROM \`${table}\``);
+        if (rows && rows.length) return Number(rows[0].c || 0);
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.error('VEHICLE TABLE DETECT ERROR:', err.message);
+  }
+
+  return null;
+}
+
 app.get('/api/dashboard', requireAuth, async (req, res) => {
   const stats = {
     registered: 0,
@@ -186,12 +251,13 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     const [[registered]] = await db.query('SELECT COUNT(*) AS c FROM freaks_accounts');
     stats.registered = Number(registered.c || 0);
 
-    // Optional tables. If they don't exist, the UI shows "—".
-    try {
-      const [[vehicles]] = await db.query('SELECT COUNT(*) AS c FROM vrp_user_vehicles');
-      stats.vehicles = Number(vehicles.c || 0);
-    } catch (_) {}
+    // Numărul REAL de jucători conectați în acest moment.
+    stats.connected = await getLivePlayerCount();
 
+    // Total vehicule din garajele tuturor jucătorilor.
+    stats.vehicles = await getTotalVehicleCount();
+
+    // Case / proprietăți, dacă există tabela standard.
     try {
       const [[houses]] = await db.query('SELECT COUNT(*) AS c FROM vrp_user_homes');
       stats.houses = Number(houses.c || 0);
