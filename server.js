@@ -176,20 +176,25 @@ app.get('/api/me', requireAuth, async (req, res) => {
 
 
 async function getLivePlayerCount() {
-  const base = String(process.env.FIVEM_SERVER_URL || 'http://81.181.113.103:30108').replace(/\/+$/, '');
-
   try {
-    const response = await fetch(`${base}/players.json`, {
-      headers: { 'User-Agent': 'Freaks-Panel/1.0' },
-      signal: AbortSignal.timeout(5000)
-    });
+    const [rows] = await db.query(
+      `SELECT online_players, updated_at
+       FROM freaks_server_stats
+       WHERE id = 1
+       LIMIT 1`
+    );
 
-    if (!response.ok) return null;
+    if (!rows.length) return null;
 
-    const players = await response.json();
-    return Array.isArray(players) ? players.length : null;
+    const row = rows[0];
+    const updated = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+
+    // Dacă serverul nu a mai actualizat de 90 secunde, îl considerăm offline.
+    if (!updated || (Date.now() - updated) > 90000) return 0;
+
+    return Number(row.online_players || 0);
   } catch (err) {
-    console.error('FIVEM PLAYERS ERROR:', err.message);
+    console.error('LIVE PLAYERS DB ERROR:', err.message);
     return null;
   }
 }
