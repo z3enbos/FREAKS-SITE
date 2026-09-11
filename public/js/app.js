@@ -151,7 +151,8 @@ function setFormMessage(id, text, ok = false) {
 
 document.getElementById('complaintForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const btn = e.currentTarget.querySelector('button[type=submit]');
+  const form = e.currentTarget;
+  const btn = form.querySelector('button[type=submit]');
   btn.disabled = true;
   setFormMessage('complaintMessage', '');
   try {
@@ -164,7 +165,7 @@ document.getElementById('complaintForm').addEventListener('submit', async (e) =>
         evidence: document.getElementById('complaintEvidence').value
       })
     });
-    e.currentTarget.reset();
+    form.reset();
     setFormMessage('complaintMessage', `${data.message} #${data.id}`, true);
     if (currentUser?.isAdmin) loadComplaints();
   } catch (err) {
@@ -176,7 +177,8 @@ document.getElementById('complaintForm').addEventListener('submit', async (e) =>
 
 document.getElementById('unbanForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const btn = e.currentTarget.querySelector('button[type=submit]');
+  const form = e.currentTarget;
+  const btn = form.querySelector('button[type=submit]');
   btn.disabled = true;
   setFormMessage('unbanMessage', '');
   try {
@@ -189,7 +191,7 @@ document.getElementById('unbanForm').addEventListener('submit', async (e) => {
         evidence: document.getElementById('unbanEvidence').value
       })
     });
-    e.currentTarget.reset();
+    form.reset();
     setFormMessage('unbanMessage', `${data.message} #${data.id}`, true);
     if (currentUser?.isAdmin) loadUnbanRequests();
   } catch (err) {
