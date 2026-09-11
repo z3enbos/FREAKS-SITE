@@ -47,9 +47,9 @@
       <button class="nav-link active" data-page="home"><span>⌂</span> Home</button>
       <button class="nav-link" data-page="profile"><span>◉</span> Profilul meu</button>
       <button class="nav-link"><span>★</span> Staff</button>
-      <button class="nav-link"><span>✎</span> Reclamații</button>
+      <button class="nav-link" data-page="complaints"><span>✎</span> Reclamații</button>
       <button class="nav-link"><span>▣</span> Tickete</button>
-      <button class="nav-link"><span>↻</span> Cereri unban</button>
+      <button class="nav-link" data-page="unban"><span>↻</span> Cereri unban</button>
       <button class="nav-link"><span>◆</span> Shop</button>
       <button class="nav-link"><span>♜</span> Referrals</button>
       <button class="nav-link"><span>⊘</span> Banuri</button>
@@ -142,6 +142,85 @@
             <div class="info-item"><span>＋</span><div><small>Cont creat</small><strong id="createdAt">—</strong></div></div>
           </div>
         </article>
+      </div>
+
+
+      <div id="complaintsPage" class="page hidden">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow">SUPORT FREAKS</div>
+            <h2>Reclamații</h2>
+            <p class="muted">Trimite o reclamație către staff. Reclamațiile pot fi văzute doar de Administrator+.</p>
+          </div>
+        </div>
+
+        <div class="case-grid">
+          <article class="panel case-form-panel">
+            <div class="panel-title">RECLAMAȚIE NOUĂ</div>
+            <form id="complaintForm" class="case-form">
+              <label>Numele celui reclamat</label>
+              <input id="complaintName" type="text" maxlength="128" placeholder="Nume jucător" required>
+              <label>ID-ul celui reclamat</label>
+              <input id="complaintId" type="number" min="1" placeholder="Ex: 24" required>
+              <label>Motiv</label>
+              <textarea id="complaintReason" maxlength="4000" placeholder="Descrie clar motivul reclamației..." required></textarea>
+              <label>Dovadă</label>
+              <textarea id="complaintEvidence" maxlength="4000" placeholder="Link YouTube / Medal / Streamable / Imgur etc." required></textarea>
+              <button type="submit" class="primary-btn case-submit">TRIMITE RECLAMAȚIA</button>
+              <div id="complaintMessage" class="form-message"></div>
+            </form>
+          </article>
+
+          <article id="complaintAdminPanel" class="panel admin-case-panel hidden">
+            <div class="case-panel-head">
+              <div>
+                <div class="panel-title">RECLAMAȚII PRIMITE</div>
+                <p class="muted">Vizibil doar pentru Administrator+.</p>
+              </div>
+              <button id="refreshComplaints" class="secondary-btn compact-btn">REÎNCARCĂ</button>
+            </div>
+            <div id="complaintsList" class="case-list"></div>
+          </article>
+        </div>
+      </div>
+
+      <div id="unbanPage" class="page hidden">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow">SUPORT FREAKS</div>
+            <h2>Cereri unban</h2>
+            <p class="muted">Trimite cererea de unban. Cererile pot fi văzute doar de Administrator+.</p>
+          </div>
+        </div>
+
+        <div class="case-grid">
+          <article class="panel case-form-panel">
+            <div class="panel-title">CERERE UNBAN NOUĂ</div>
+            <form id="unbanForm" class="case-form">
+              <label>Nume</label>
+              <input id="unbanName" type="text" maxlength="128" placeholder="Numele tău în joc" required>
+              <label>ID</label>
+              <input id="unbanId" type="number" min="1" placeholder="ID-ul tău" required>
+              <label>Motiv</label>
+              <textarea id="unbanReason" maxlength="4000" placeholder="De ce soliciți unban?" required></textarea>
+              <label>Dovadă</label>
+              <textarea id="unbanEvidence" maxlength="4000" placeholder="Link către dovadă" required></textarea>
+              <button type="submit" class="primary-btn case-submit">TRIMITE CEREREA</button>
+              <div id="unbanMessage" class="form-message"></div>
+            </form>
+          </article>
+
+          <article id="unbanAdminPanel" class="panel admin-case-panel hidden">
+            <div class="case-panel-head">
+              <div>
+                <div class="panel-title">CERERI UNBAN PRIMITE</div>
+                <p class="muted">Vizibil doar pentru Administrator+.</p>
+              </div>
+              <button id="refreshUnban" class="secondary-btn compact-btn">REÎNCARCĂ</button>
+            </div>
+            <div id="unbanList" class="case-list"></div>
+          </article>
+        </div>
       </div>
 
       <footer>Freaks Romania © 2026 • User Panel</footer>

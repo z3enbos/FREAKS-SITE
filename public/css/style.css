@@ -201,3 +201,28 @@ footer{margin-top:auto;height:64px;background:#101116;border-top:1px solid #292c
   .profile-metrics{display:none}
   .profile-info-grid{grid-template-columns:1fr}
 }
+
+/* COMPLAINTS / UNBAN */
+.case-grid{display:grid;grid-template-columns:minmax(330px,.85fr) minmax(480px,1.35fr);gap:14px;align-items:start}
+.case-form{display:flex;flex-direction:column}
+.case-form label{font-size:11px;font-weight:800;color:#b9bdc6;margin:13px 0 7px;letter-spacing:.04em}
+.case-form input,.case-form textarea{width:100%;border:1px solid #30333b;background:#181a20;color:#fff;border-radius:8px;padding:12px 13px;outline:none}
+.case-form input{height:46px}
+.case-form textarea{min-height:112px;resize:vertical;font-family:inherit;line-height:1.45}
+.case-form input:focus,.case-form textarea:focus{border-color:#8f949e;box-shadow:0 0 0 3px #8882}
+.case-submit{width:100%;margin-top:18px;border:0}
+.form-message{min-height:22px;margin-top:10px;font-size:12px;color:#aeb3bd}
+.form-message.ok{color:#91d6a1}.form-message.err{color:#ff8d8d}
+.case-panel-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:10px}
+.compact-btn{width:auto;padding:0 14px;height:36px;white-space:nowrap}
+.case-list{display:flex;flex-direction:column;gap:10px;max-height:760px;overflow:auto;padding-right:3px}
+.case-item{border:1px solid #2e3138;background:#181a20;border-radius:10px;padding:14px}
+.case-item.closed{opacity:.66}
+.case-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.case-title{font-weight:900;font-size:14px}.case-id{font-size:11px;color:#777d87;margin-top:3px}
+.case-status{font-size:9px;font-weight:900;letter-spacing:.08em;padding:6px 9px;border-radius:999px;border:1px solid #4a4e57;color:#d9dce1}
+.case-status.open{border-color:#6a6f78;background:#2a2d34}.case-status.closed{color:#888d96}
+.case-meta{font-size:11px;color:#7f858f;margin:10px 0;padding-bottom:10px;border-bottom:1px solid #2b2e35}
+.case-block{margin:10px 0}.case-block small{display:block;color:#717782;font-size:9px;font-weight:900;letter-spacing:.08em;margin-bottom:5px}.case-block p{white-space:pre-wrap;word-break:break-word;margin:0;color:#c8cbd1;font-size:12px;line-height:1.5}
+.case-actions{display:flex;justify-content:flex-end;margin-top:12px}.close-case-btn{height:34px;border:1px solid #4a4e57;background:#272a31;color:#eee;border-radius:7px;padding:0 12px;cursor:pointer;font-weight:800;font-size:10px}.close-case-btn:hover{background:#343740}
+@media(max-width:1050px){.case-grid{grid-template-columns:1fr}}

@@ -78,7 +78,7 @@ async function resolveUserData(account) {
   if (userId) {
     try {
       const [rows] = await db.query(
-        'SELECT id, firstName, secondName, age, sex FROM vrp_users WHERE id = ? LIMIT 1',
+        'SELECT id, firstName, secondName, age, sex, adminLvl, faction, factionRank, walletMoney, bankMoney, FLCoins, hoursPlayed, warns, banned, bannedTemp, bannedReason FROM vrp_users WHERE id = ? LIMIT 1',
         [userId]
       );
       if (rows.length) identity = rows[0];
@@ -86,6 +86,97 @@ async function resolveUserData(account) {
   }
 
   return { userId, identity };
+}
+
+
+const ADMIN_TITLES = {
+  1: 'Helper In Teste',
+  2: 'Helper',
+  3: 'Moderator',
+  4: 'Administrator',
+  5: 'Supervizor',
+  6: 'Head Of Staff',
+  7: 'Community Manager',
+  8: 'Fondator FREAKS'
+};
+
+async function getSessionContext(req) {
+  const [rows] = await db.query(
+    `SELECT id, license, email, fivem_name, flcoins, user_id, created_at, last_login_at
+     FROM freaks_accounts WHERE id = ? LIMIT 1`,
+    [req.session.accountId]
+  );
+  if (!rows.length) return null;
+  const account = rows[0];
+  const resolved = await resolveUserData(account);
+  const adminLevel = Number(resolved.identity?.adminLvl || 0);
+  return {
+    account,
+    userId: resolved.userId ? Number(resolved.userId) : null,
+    identity: resolved.identity,
+    adminLevel,
+    isAdmin: adminLevel >= 4,
+    adminTitle: ADMIN_TITLES[adminLevel] || null
+  };
+}
+
+async function requireAdministrator(req, res, next) {
+  try {
+    const ctx = await getSessionContext(req);
+    if (!ctx) return res.status(401).json({ ok: false, message: 'Sesiune expirată.' });
+    if (!ctx.isAdmin) return res.status(403).json({ ok: false, message: 'Doar Administrator+ poate accesa această secțiune.' });
+    req.freaksContext = ctx;
+    next();
+  } catch (err) {
+    console.error('ADMIN CHECK ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Eroare server.' });
+  }
+}
+
+let caseSchemaReady = false;
+async function ensureCaseTables() {
+  if (caseSchemaReady) return;
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS freaks_complaints (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      account_id INT UNSIGNED NOT NULL,
+      reporter_user_id INT NULL,
+      reported_name VARCHAR(128) NOT NULL,
+      reported_user_id INT NOT NULL,
+      reason TEXT NOT NULL,
+      evidence TEXT NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'open',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME NULL,
+      closed_by_user_id INT NULL,
+      PRIMARY KEY (id),
+      KEY idx_freaks_complaints_status (status),
+      KEY idx_freaks_complaints_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS freaks_unban_requests (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      account_id INT UNSIGNED NOT NULL,
+      requester_user_id INT NULL,
+      player_name VARCHAR(128) NOT NULL,
+      player_id INT NOT NULL,
+      reason TEXT NOT NULL,
+      evidence TEXT NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'open',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME NULL,
+      closed_by_user_id INT NULL,
+      PRIMARY KEY (id),
+      KEY idx_freaks_unban_status (status),
+      KEY idx_freaks_unban_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+  caseSchemaReady = true;
+}
+
+function cleanText(value, max) {
+  return String(value || '').trim().slice(0, max);
 }
 
 app.post('/api/login', async (req, res) => {
@@ -165,7 +256,15 @@ app.get('/api/me', requireAuth, async (req, res) => {
         flcoins: Number(account.flcoins || 0),
         createdAt: account.created_at,
         lastLoginAt: account.last_login_at,
-        identity: resolved.identity
+        identity: resolved.identity,
+        adminLevel: Number(resolved.identity?.adminLvl || 0),
+        adminTitle: ADMIN_TITLES[Number(resolved.identity?.adminLvl || 0)] || null,
+        isAdmin: Number(resolved.identity?.adminLvl || 0) >= 4,
+        walletMoney: Number(resolved.identity?.walletMoney || 0),
+        bankMoney: Number(resolved.identity?.bankMoney || 0),
+        hoursPlayed: Number(resolved.identity?.hoursPlayed || 0),
+        faction: resolved.identity?.faction || 'user',
+        factionRank: resolved.identity?.factionRank || 'none'
       }
     });
   } catch (err) {
@@ -243,6 +342,139 @@ async function getTotalVehicleCount() {
 
   return null;
 }
+
+
+app.post('/api/complaints', requireAuth, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const ctx = await getSessionContext(req);
+    if (!ctx) return res.status(401).json({ ok: false, message: 'Sesiune expirată.' });
+
+    const reportedName = cleanText(req.body.reportedName, 128);
+    const reportedId = Number(req.body.reportedId);
+    const reason = cleanText(req.body.reason, 4000);
+    const evidence = cleanText(req.body.evidence, 4000);
+
+    if (!reportedName || !Number.isInteger(reportedId) || reportedId <= 0 || reason.length < 5 || evidence.length < 3) {
+      return res.status(400).json({ ok: false, message: 'Completează numele, ID-ul, motivul și dovada.' });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO freaks_complaints
+       (account_id, reporter_user_id, reported_name, reported_user_id, reason, evidence)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.session.accountId, ctx.userId, reportedName, reportedId, reason, evidence]
+    );
+
+    res.json({ ok: true, id: result.insertId, message: 'Reclamația a fost trimisă.' });
+  } catch (err) {
+    console.error('CREATE COMPLAINT ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut trimite reclamația.' });
+  }
+});
+
+app.get('/api/complaints', requireAuth, requireAdministrator, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const [rows] = await db.query(`
+      SELECT c.*, a.email AS reporter_email,
+             u.firstName AS reporter_first_name, u.secondName AS reporter_second_name
+      FROM freaks_complaints c
+      LEFT JOIN freaks_accounts a ON a.id = c.account_id
+      LEFT JOIN vrp_users u ON u.id = c.reporter_user_id
+      ORDER BY CASE WHEN c.status = 'open' THEN 0 ELSE 1 END, c.created_at DESC
+      LIMIT 250
+    `);
+    res.json({ ok: true, items: rows });
+  } catch (err) {
+    console.error('LIST COMPLAINTS ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut încărca reclamațiile.' });
+  }
+});
+
+app.patch('/api/complaints/:id/close', requireAuth, requireAdministrator, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ ok: false });
+    await db.query(
+      `UPDATE freaks_complaints
+       SET status = 'closed', closed_at = NOW(), closed_by_user_id = ?
+       WHERE id = ? AND status <> 'closed'`,
+      [req.freaksContext.userId, id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('CLOSE COMPLAINT ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut închide reclamația.' });
+  }
+});
+
+app.post('/api/unban-requests', requireAuth, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const ctx = await getSessionContext(req);
+    if (!ctx) return res.status(401).json({ ok: false, message: 'Sesiune expirată.' });
+
+    const playerName = cleanText(req.body.playerName, 128);
+    const playerId = Number(req.body.playerId);
+    const reason = cleanText(req.body.reason, 4000);
+    const evidence = cleanText(req.body.evidence, 4000);
+
+    if (!playerName || !Number.isInteger(playerId) || playerId <= 0 || reason.length < 5 || evidence.length < 3) {
+      return res.status(400).json({ ok: false, message: 'Completează numele, ID-ul, motivul și dovada.' });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO freaks_unban_requests
+       (account_id, requester_user_id, player_name, player_id, reason, evidence)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.session.accountId, ctx.userId, playerName, playerId, reason, evidence]
+    );
+
+    res.json({ ok: true, id: result.insertId, message: 'Cererea de unban a fost trimisă.' });
+  } catch (err) {
+    console.error('CREATE UNBAN ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut trimite cererea.' });
+  }
+});
+
+app.get('/api/unban-requests', requireAuth, requireAdministrator, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const [rows] = await db.query(`
+      SELECT r.*, a.email AS requester_email,
+             u.firstName AS account_first_name, u.secondName AS account_second_name
+      FROM freaks_unban_requests r
+      LEFT JOIN freaks_accounts a ON a.id = r.account_id
+      LEFT JOIN vrp_users u ON u.id = r.requester_user_id
+      ORDER BY CASE WHEN r.status = 'open' THEN 0 ELSE 1 END, r.created_at DESC
+      LIMIT 250
+    `);
+    res.json({ ok: true, items: rows });
+  } catch (err) {
+    console.error('LIST UNBAN ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut încărca cererile.' });
+  }
+});
+
+app.patch('/api/unban-requests/:id/close', requireAuth, requireAdministrator, async (req, res) => {
+  try {
+    await ensureCaseTables();
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ ok: false });
+    await db.query(
+      `UPDATE freaks_unban_requests
+       SET status = 'closed', closed_at = NOW(), closed_by_user_id = ?
+       WHERE id = ? AND status <> 'closed'`,
+      [req.freaksContext.userId, id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('CLOSE UNBAN ERROR:', err);
+    res.status(500).json({ ok: false, message: 'Nu am putut închide cererea.' });
+  }
+});
 
 app.get('/api/dashboard', requireAuth, async (req, res) => {
   const stats = {
