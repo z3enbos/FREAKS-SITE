@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const express = require('express');
-const session = require('express-session');
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 const path = require('path');
@@ -22,17 +21,85 @@ const db = mysql.createPool({
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'CHANGE-ME-FREAKS',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
-    maxAge: 1000 * 60 * 60 * 24 * 7
+
+// Stateless signed cookie session. This works reliably on Vercel/serverless,
+// unlike express-session's default in-memory store which can disappear
+// between API requests handled by different instances.
+const SESSION_SECRET = process.env.SESSION_SECRET || 'CHANGE-ME-FREAKS';
+const SESSION_COOKIE = 'freaks_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+function parseCookies(req) {
+  const raw = String(req.headers.cookie || '');
+  const out = {};
+  for (const part of raw.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (!key) continue;
+    try { out[key] = decodeURIComponent(value); } catch { out[key] = value; }
   }
-}));
+  return out;
+}
+
+function sessionSignature(accountId, expiresAt) {
+  return crypto
+    .createHmac('sha256', SESSION_SECRET)
+    .update(`${accountId}.${expiresAt}`)
+    .digest('hex');
+}
+
+function makeSessionToken(accountId) {
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const sig = sessionSignature(accountId, expiresAt);
+  return `${accountId}.${expiresAt}.${sig}`;
+}
+
+function readSessionToken(req) {
+  try {
+    const token = parseCookies(req)[SESSION_COOKIE];
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const accountId = Number(parts[0]);
+    const expiresAt = Number(parts[1]);
+    const receivedSig = parts[2];
+    if (!Number.isInteger(accountId) || accountId <= 0) return null;
+    if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return null;
+    const expectedSig = sessionSignature(accountId, expiresAt);
+    const a = Buffer.from(receivedSig, 'hex');
+    const b = Buffer.from(expectedSig, 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    return { accountId, expiresAt };
+  } catch (_) {
+    return null;
+  }
+}
+
+function setAuthCookie(res, accountId) {
+  const token = makeSessionToken(accountId);
+  const secure = process.env.VERCEL ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${secure}`
+  );
+}
+
+function clearAuthCookie(res) {
+  const secure = process.env.VERCEL ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`
+  );
+}
+
+app.use((req, _res, next) => {
+  const auth = readSessionToken(req);
+  // Keep the existing req.session.accountId interface used by the routes.
+  req.session = auth ? { accountId: auth.accountId } : {};
+  next();
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -206,8 +273,8 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ ok: false, message: 'Parolă greșită.' });
     }
 
+    setAuthCookie(res, account.id);
     req.session.accountId = account.id;
-    req.session.email = account.email;
 
     return res.json({ ok: true });
   } catch (err) {
@@ -220,7 +287,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  clearAuthCookie(res);
+  res.json({ ok: true });
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
